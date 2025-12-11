@@ -18,6 +18,7 @@ import com.example.demo.model.HeartRateRange.HeartRateThresholdMapping;
 import com.example.demo.model.SunMoonThreshold;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
@@ -38,8 +39,22 @@ import javafx.scene.control.Tooltip;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.VBox;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.example.demo.model.AzimuthRange;
+import com.example.demo.model.HeartRateRange.HeartRateThresholdMapping;
 
 public class ResearcherController {
+    @FXML
+    private TextField aiPromptField;
+
+    @FXML
+    private Button sendAiCommandBtn;
+
+    @FXML
+    private Label aiStatusLabel;
+
 	@FXML
 	private RadioButton heartRateRadio, sunPositionRadio, moonPositionRadio;
 
@@ -1337,4 +1352,76 @@ public class ResearcherController {
 		}
 	}
 
+    @FXML
+    private void handleAiCommand() {
+        String command = aiPromptField.getText();
+        if (command == null || command.trim().isEmpty()) {
+            aiStatusLabel.setText("Please enter a command.");
+            return;
+        }
+
+        aiStatusLabel.setText("Sending command to AI...");
+        sendAiCommandBtn.setDisable(true);
+
+        // Send HTTP POST in a separate thread to avoid freezing UI
+        new Thread(() -> {
+            try {
+                sendConfigToN8n(command);
+                javafx.application.Platform.runLater(() -> {
+                    aiStatusLabel.setText("Success! Rule created.");
+                    aiPromptField.clear();
+                    sendAiCommandBtn.setDisable(false);
+                    // Optional: Refresh your table view here if you have one showing rules
+                    // loadData();
+                });
+            } catch (Exception e) {
+                e.printStackTrace();
+                javafx.application.Platform.runLater(() -> {
+                    aiStatusLabel.setText("Error: " + e.getMessage());
+                    sendAiCommandBtn.setDisable(false);
+                });
+            }
+        }).start();
+    }
+
+    private void sendConfigToN8n(String prompt) throws Exception {
+        String urlString = "http://localhost:5678/webhook/chat-config";
+        System.out.println("Connecting to: " + urlString); // Debug log
+
+        java.net.URL url = new java.net.URL(urlString);
+        java.net.HttpURLConnection conn = (java.net.HttpURLConnection) url.openConnection();
+
+        conn.setRequestMethod("POST");
+        conn.setRequestProperty("Content-Type", "application/json");
+        conn.setDoOutput(true);
+        conn.setConnectTimeout(5000); // 5s timeout
+        conn.setReadTimeout(5000);
+
+        // Escaping quotes is primitive; use Jackson if available (you have it imported)
+        ObjectMapper mapper = new ObjectMapper();
+        ObjectNode node = mapper.createObjectNode();
+        node.put("message", prompt);
+        String jsonInputString = mapper.writeValueAsString(node);
+
+        try (java.io.OutputStream os = conn.getOutputStream()) {
+            byte[] input = jsonInputString.getBytes("utf-8");
+            os.write(input, 0, input.length);
+        }
+
+        int code = conn.getResponseCode();
+        System.out.println("Response Code: " + code); // Debug log
+
+        if (code != 200) {
+            // Read error stream for better debugging
+            try (java.io.BufferedReader br = new java.io.BufferedReader(
+                    new java.io.InputStreamReader(conn.getErrorStream(), "utf-8"))) {
+                StringBuilder response = new StringBuilder();
+                String responseLine;
+                while ((responseLine = br.readLine()) != null) {
+                    response.append(responseLine.trim());
+                }
+                throw new RuntimeException("HTTP Error " + code + ": " + response.toString());
+            }
+        }
+    }
 }

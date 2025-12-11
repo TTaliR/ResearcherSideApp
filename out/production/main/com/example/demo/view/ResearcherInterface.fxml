@@ -34,7 +34,6 @@
 				<Label style="-fx-text-fill: white; -fx-font-size: 24;" text="Celestial Research Configuration Panel" />
 			</VBox>
 
-
 			<!-- Main Content -->
 			<HBox spacing="20" style="-fx-padding: 20;" VBox.vgrow="ALWAYS">
 
@@ -112,20 +111,9 @@
 								<Button fx:id="MonitorSave" onAction="#sendMonitoringTypeToNodeRed" prefHeight="25.0" prefWidth="68.0" style="-fx-background-color: #28a745; -fx-text-fill: white;" text="Save" />
 							</children>
 						</HBox>
-                        <VBox spacing="10" layoutX="50.0" layoutY="400.0">
-                            <Label text="AI Configuration Assistant" style="-fx-font-weight: bold; -fx-font-size: 14px;"/>
-                            <HBox spacing="10">
-                                <TextField fx:id="aiPromptField" promptText="e.g. 'Vibrate hard if HR > 120'" prefWidth="400.0"/>
-                            <HBox prefHeight="62.0" prefWidth="373.0">
-                                <children>
-                                    <Button fx:id="sendAiCommandBtn" text="Create" onAction="#handleAiCommand" prefHeight="25.0" prefWidth="68.0" style="-fx-background-color: #28a745; -fx-text-fill: white;"/>
-                                </children>
-                            </HBox>
-                            </HBox>
-                            <Label fx:id="aiStatusLabel" text="" style="-fx-text-fill: gray;"/>
-                        </VBox>
 					</children>
 				</VBox>
+
 
 			</HBox>
 		</VBox>
