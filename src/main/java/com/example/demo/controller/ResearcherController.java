@@ -144,7 +144,7 @@ public class ResearcherController {
 		requestBody.put("monitoringType", selectedType);
 
 		// Send to Node-RED
-		if(postJsonToNodeRed(requestBody, "http://localhost:1880/set-monitoring-type",
+		if(postJsonToNodeRed(requestBody, "http://localhost:5678/webhook/set-monitoring-type",
 				"Monitoring type sent successfully!")) {
 			showAlert("Success", "Data Source was sucessfully sent");
 		}
@@ -174,7 +174,7 @@ public class ResearcherController {
 			}
 
 			// Send to Node-RED via HTTP POST
-			postJsonToNodeRed(sunThreshold, "http://localhost:1880/set-sun-azimuth-threshold",
+			postJsonToNodeRed(sunThreshold, "http://localhost:5678/webhook/set-sun-azimuth-threshold",
 					"Sun Azimuth Ranges sent successfully!");
 
 			// Debug: print again after sending
@@ -208,7 +208,7 @@ public class ResearcherController {
 	
 
 			// Send to Node-RED via HTTP POST
-			postJsonToNodeRed(moonThreshold, "http://localhost:1880/set-moon-azimuth-threshold",
+			postJsonToNodeRed(moonThreshold, "http://localhost:5678/webhook/set-moon-azimuth-threshold",
 					"Moon Azimuth Ranges sent successfully!");
 
 			// Debug: print again after sending
@@ -243,7 +243,7 @@ public class ResearcherController {
 			heartThreshold.setThresholds(new ArrayList<>(heartRateMappingsTest));
 
 			// Send to Node-RED via HTTP POST
-			postJsonToNodeRed(heartThreshold, "http://localhost:1880/set-heart-rate-threshold",
+			postJsonToNodeRed(heartThreshold, "http://localhost:5678/webhook/set-heart-rate-threshold",
 					"Heart Rate mappings sent successfully!");
 
 			// Remove invisible rows from the UI container
@@ -859,7 +859,7 @@ public class ResearcherController {
 	public void fetchCurrentConfigurationsWithoutMessage() {
 		try {
 			// Fetch JSON data from Node-RED's configuration endpoint
-			JsonNode rootNode = getJsonFromNodeRed("http://127.0.0.1:1880/current-configurations");
+			JsonNode rootNode = getJsonFromNodeRed("http://localhost:5678/webhook/current-configurations");
 
 			// Debug: Print the entire response structure
 			System.out.println(rootNode);
@@ -892,7 +892,7 @@ public class ResearcherController {
 	public void fetchCurrentConfigurations() {
 		try {
 			// Fetch configuration JSON from the Node-RED backend
-			JsonNode rootNode = getJsonFromNodeRed("http://127.0.0.1:1880/current-configurations");
+			JsonNode rootNode = getJsonFromNodeRed("http://localhost:5678/webhook/current-configurations");
 
 			// Debug: Log full response from Node-RED
 			System.out.println(rootNode);

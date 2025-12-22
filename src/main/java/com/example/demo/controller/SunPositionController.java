@@ -56,7 +56,7 @@ public class SunPositionController {
 
     private void fetchAndUpdateChart() {
         try {
-            URL url = new URL("http://localhost:1880/get-data");
+            URL url = new URL("http://localhost:5678/webhook/sensor-data");
             HttpURLConnection conn = (HttpURLConnection) url.openConnection();
             conn.setRequestMethod("GET");
 

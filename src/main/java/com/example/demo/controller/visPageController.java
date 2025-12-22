@@ -205,7 +205,7 @@ public class visPageController {
 
 		try {
 			@SuppressWarnings("deprecation")
-			URL url = new URL("http://localhost:1880/get-users");
+			URL url = new URL("http://localhost:5678/webhook/get-users");
 			HttpURLConnection conn = (HttpURLConnection) url.openConnection();
 			conn.setRequestMethod("GET");
 
@@ -396,7 +396,7 @@ public class visPageController {
 		heartRateChart.getData().clear();
 
 		try {
-			String urlStr = "http://localhost:1880/get-data?range="
+			String urlStr = "http://localhost:5678/webhook/sensor-data?range="
 					+ URLEncoder.encode(timeRange, StandardCharsets.UTF_8) + "&alert_type="
 					+ URLEncoder.encode(useCaseSelector.getValue(), StandardCharsets.UTF_8);
 			System.out.println("API URL: " + urlStr);
@@ -730,7 +730,7 @@ public class visPageController {
 			int userID = user.getUserID();
 			try {
 				// Fetch user heart rate data
-				String urlStr = "http://localhost:1880/get-data?userId=" + userID;
+				String urlStr = "http://localhost:5678/webhook/sensor-data?userId=" + userID;
 				URL url = new URL(urlStr);
 				HttpURLConnection conn = (HttpURLConnection) url.openConnection();
 				conn.setRequestMethod("GET");
@@ -880,7 +880,7 @@ public class visPageController {
 	public int getSensorIdByName(String name) {
 		try {
 			@SuppressWarnings("deprecation")
-			URL url = new URL("http://localhost:1880/get-sensortypes");
+			URL url = new URL("http://localhost:5678/webhook/get-sensor-types");
 			HttpURLConnection conn = (HttpURLConnection) url.openConnection();
 			conn.setRequestMethod("GET");
 
@@ -931,7 +931,7 @@ public class visPageController {
 		String timeRange = timeRangeSelector.getValue();
 
 		try {
-			String urlStr = "http://localhost:1880/get-data?userId=" + userID + "&sensorId=" + sensorID + "&timeRange="
+			String urlStr = "http://localhost:5678/webhook/sensor-data?userId=" + userID + "&sensorId=" + sensorID + "&timeRange="
 					+ timeRange.replace(" ", "%20");
 			@SuppressWarnings("deprecation")
 			URL url = new URL(urlStr);

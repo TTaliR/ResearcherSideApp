@@ -185,7 +185,7 @@ public class SunPositionTracker {
     private void updateSunPosition() {
         try {
             // Query the API for sun position and user feedback data
-            URL url = new URL("http://localhost:1880/get-data");
+            URL url = new URL("http://localhost:5678/webhook/sensor-data");
             HttpURLConnection conn = (HttpURLConnection) url.openConnection();
             conn.setRequestMethod("GET");
             
