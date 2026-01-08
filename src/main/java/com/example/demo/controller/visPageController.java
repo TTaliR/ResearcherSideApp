@@ -201,35 +201,56 @@ public class visPageController {
 	}
 
 	private void loadUserData() {
-		userData.clear();
+	    userData.clear();
 
-		try {
-			@SuppressWarnings("deprecation")
-			URL url = new URL("http://localhost:5678/webhook/get-users");
-			HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-			conn.setRequestMethod("GET");
+	    try {
+	        @SuppressWarnings("deprecation")
+	        URL url = new URL("http://localhost:5678/webhook/get-users");
+	        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+	        conn.setRequestMethod("GET");
 
-			BufferedReader reader = new BufferedReader(new InputStreamReader(conn.getInputStream()));
-			StringBuilder response = new StringBuilder();
-			String line;
-			while ((line = reader.readLine()) != null) {
-				response.append(line);
-			}
-			reader.close();
+	        BufferedReader reader = new BufferedReader(new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8));
+	        StringBuilder response = new StringBuilder();
+	        String line;
+	        while ((line = reader.readLine()) != null) {
+	            response.append(line);
+	        }
+	        reader.close();
 
-			ObjectMapper mapper = new ObjectMapper();
-			JsonNode root = mapper.readTree(response.toString());
+	        String responseStr = response.toString();
+	        System.out.println("loadUserData response: " + (responseStr.length() > 500 ? responseStr.substring(0, 500) + "..." : responseStr));
 
-			for (JsonNode userNode : root) {
-				int id = userNode.get("userid").asInt();
-				String firstName = userNode.get("fname").asText();
-				String lastName = userNode.get("lname").asText();
-				userData.add(new User(id, firstName, lastName));
-			}
+	        ObjectMapper mapper = new ObjectMapper();
+	        JsonNode root = mapper.readTree(responseStr);
 
-		} catch (Exception e) {
-			e.printStackTrace();
-		}
+	        JsonNode arrayNode;
+	        if (root.isArray()) {
+	            arrayNode = root;
+	        } else if (root.has("data") && root.get("data").isArray()) {
+	            arrayNode = root.get("data");
+	        } else if (root.isObject() && root.hasNonNull("userid")) {
+	            // single user object -> wrap into array for uniform processing
+	            arrayNode = mapper.createArrayNode().add(root);
+	        } else {
+	            System.err.println("Unexpected JSON structure for users: " + root);
+	            return;
+	        }
+
+	        for (JsonNode userNode : arrayNode) {
+	            if (!userNode.hasNonNull("userid")) {
+	                System.err.println("Skipping user node without userid: " + userNode);
+	                continue;
+	            }
+	            int id = userNode.get("userid").asInt();
+	            String firstName = userNode.hasNonNull("fname") ? userNode.get("fname").asText() : "";
+	            String lastName = userNode.hasNonNull("lname") ? userNode.get("lname").asText() : "";
+	            userData.add(new User(id, firstName, lastName));
+	            System.out.println("Loaded user: " + id + " - " + firstName + " " + lastName);
+	        }
+
+	    } catch (Exception e) {
+	        e.printStackTrace();
+	    }
 	}
 
 	private void populateUserSelector() {
@@ -398,7 +419,8 @@ public class visPageController {
 		try {
 			String urlStr = "http://localhost:5678/webhook/sensor-data?range="
 					+ URLEncoder.encode(timeRange, StandardCharsets.UTF_8) + "&alert_type="
-					+ URLEncoder.encode(useCaseSelector.getValue(), StandardCharsets.UTF_8);
+					+ URLEncoder.encode(useCaseSelector.getValue(), StandardCharsets.UTF_8)
+					+ "&userid=" +  URLEncoder.encode(String.valueOf(selectedUserID), StandardCharsets.UTF_8);
 			System.out.println("API URL: " + urlStr);
 
 			@SuppressWarnings("deprecation")
@@ -425,8 +447,13 @@ public class visPageController {
 			JsonNode rootNode = mapper.readTree(responseStr);
 
 			JsonNode dataNode = rootNode;
-			if (rootNode.has("data")) {
-				dataNode = rootNode.get("data");
+			if (rootNode.has("payload")) {
+				dataNode = rootNode.get("payload");
+			}
+
+			if (!dataNode.isArray()) {
+				System.out.println("No data returned or invalid format. root=" + rootNode);
+				return;
 			}
 
 			if (dataNode.isArray()) {
@@ -877,42 +904,58 @@ public class visPageController {
 		}
 	}
 
+	// java
 	public int getSensorIdByName(String name) {
-		try {
-			@SuppressWarnings("deprecation")
-			URL url = new URL("http://localhost:5678/webhook/get-sensor-types");
-			HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-			conn.setRequestMethod("GET");
+	    if (name == null || name.trim().isEmpty()) return -1;
+	    String lookup = name.trim().toLowerCase();
 
-			if (conn.getResponseCode() != 200) {
-				System.out.println("HTTP error: " + conn.getResponseCode());
-				return -1;
-			}
+	    HttpURLConnection conn = null;
+	    try {
+	        @SuppressWarnings("deprecation")
+	        URL url = new URL("http://localhost:5678/webhook/get-sensor-types");
+	        conn = (HttpURLConnection) url.openConnection();
+	        conn.setRequestMethod("GET");
+	        conn.setRequestProperty("Accept", "application/json");
+	        conn.setConnectTimeout(5000);
+	        conn.setReadTimeout(5000);
 
-			BufferedReader in = new BufferedReader(new InputStreamReader(conn.getInputStream()));
-			StringBuilder response = new StringBuilder();
-			String line;
-			while ((line = in.readLine()) != null) {
-				response.append(line);
-			}
-			in.close();
+	        int code = conn.getResponseCode();
+	        if (code != HttpURLConnection.HTTP_OK) {
+	            System.err.println("HTTP error: " + code);
+	            return -1;
+	        }
 
-			ObjectMapper mapper = new ObjectMapper();
-			JsonNode root = mapper.readTree(response.toString());
+	        StringBuilder sb = new StringBuilder();
+	        try (BufferedReader in = new BufferedReader(new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8))) {
+	            String line;
+	            while ((line = in.readLine()) != null) sb.append(line);
+	        }
 
-			Map<String, Integer> sensorMap = new HashMap<>();
-			for (JsonNode node : root) {
-				String sensorName = node.get("name").asText();
-				int sensorId = node.get("sensorid").asInt();
-				sensorMap.put(sensorName, sensorId);
-			}
+	        ObjectMapper mapper = new ObjectMapper();
+	        JsonNode root = mapper.readTree(sb.toString());
 
-			return sensorMap.getOrDefault(name, -1);
+	        JsonNode arrayNode = root.isArray() ? root : (root.has("sensorid") && root.get("data").isArray() ? root.get("data") : null);
+	        if (arrayNode == null || !arrayNode.isArray()) {
+	            System.err.println("Unexpected JSON structure for sensor types: " + root);
+	            return -1;
+	        }
 
-		} catch (Exception e) {
-			e.printStackTrace();
-			return -1;
-		}
+	        for (JsonNode node : arrayNode) {
+	            if (node == null || node.isNull()) continue;
+	            String sensorName = node.hasNonNull("name") ? node.get("name").asText().trim().toLowerCase() : null;
+	            int sensorId = node.has("sensorid") ? node.get("sensorid").asInt(-1) : node.path("id").asInt(-1);
+	            if (sensorName == null) continue;
+	            if (sensorName.equals(lookup)) return sensorId;
+				System.out.println("sensor recived: "+sensorName);
+	        }
+
+	        return -1;
+	    } catch (Exception e) {
+	        e.printStackTrace();
+	        return -1;
+	    } finally {
+	        if (conn != null) conn.disconnect();
+	    }
 	}
 
 	@FXML
@@ -931,7 +974,7 @@ public class visPageController {
 		String timeRange = timeRangeSelector.getValue();
 
 		try {
-			String urlStr = "http://localhost:5678/webhook/sensor-data?userId=" + userID + "&sensorId=" + sensorID + "&timeRange="
+			String urlStr = "http://localhost:5678/webhook/sensor-data?userid=" + userID + "&alert_type=" + sensorID + "&range="
 					+ timeRange.replace(" ", "%20");
 			@SuppressWarnings("deprecation")
 			URL url = new URL(urlStr);
