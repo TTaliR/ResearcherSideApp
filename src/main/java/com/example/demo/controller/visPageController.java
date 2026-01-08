@@ -757,7 +757,7 @@ public class visPageController {
 			int userID = user.getUserID();
 			try {
 				// Fetch user heart rate data
-				String urlStr = "http://localhost:5678/webhook/sensor-data?userId=" + userID;
+				String urlStr = "http://localhost:5678/webhook/sensor-data?alert_type=&userid=" + userID;
 				URL url = new URL(urlStr);
 				HttpURLConnection conn = (HttpURLConnection) url.openConnection();
 				conn.setRequestMethod("GET");
@@ -934,7 +934,7 @@ public class visPageController {
 	        ObjectMapper mapper = new ObjectMapper();
 	        JsonNode root = mapper.readTree(sb.toString());
 
-	        JsonNode arrayNode = root.isArray() ? root : (root.has("sensorid") && root.get("data").isArray() ? root.get("data") : null);
+	        JsonNode arrayNode = root.isArray() ? root : (root.has("payload") && root.get("payload").isArray() ? root.get("payload") : null);
 	        if (arrayNode == null || !arrayNode.isArray()) {
 	            System.err.println("Unexpected JSON structure for sensor types: " + root);
 	            return -1;
@@ -971,6 +971,8 @@ public class visPageController {
 		int userID = Integer.parseInt(userSelection.split(" ")[0]);
 		int sensorID = getSensorIdByName(useCase);
 
+		System.out.println(userID + " " + sensorID);
+
 		String timeRange = timeRangeSelector.getValue();
 
 		try {
@@ -991,6 +993,22 @@ public class visPageController {
 
 			ObjectMapper mapper = new ObjectMapper();
 			JsonNode root = mapper.readTree(response.toString());
+
+			JsonNode payloadNode = null;
+
+			if (root.isArray() && root.size() > 0) {
+				JsonNode wrapper = root.get(0);
+				payloadNode = wrapper.path("payload");
+			} else if (root.isObject()) {
+				// in case your API returns an object instead of array later
+				payloadNode = root.path("payload");
+			}
+
+			if (payloadNode == null || !payloadNode.isArray()) {
+				System.out.println("Unexpected JSON format. root=" + root);
+				// optionally add "No data..." to PDF
+				payloadNode = null;
+			}
 
 			Document document = new Document();
 			String fileName = "User_" + userID + "" + useCase.replace(" ", "") + "_log.pdf";
@@ -1020,21 +1038,22 @@ public class visPageController {
 			}
 
 			int rowCount = 0;
-			if (root.isArray()) {
-				for (JsonNode node : root) {
+
+			if (payloadNode != null) {
+				for (JsonNode node : payloadNode) {
 					rowCount++;
 
-					String time = node.hasNonNull("time") ? node.get("time").asText() : "N/A";
-					double value = node.hasNonNull("value") ? node.get("value").asDouble() : 0.0;
-					String alertType = node.hasNonNull("alert_type") ? node.get("alert_type").asText() : null;
+					String time = node.path("time").asText("N/A");
+					double value = node.path("value").asDouble(0.0);
+					String alertType = node.path("alert_type").asText(null);
 
 					table.addCell(time);
 					table.addCell(String.valueOf(value));
 					table.addCell(alertType != null ? "Yes" : "No");
-					table.addCell(node.hasNonNull("pulses") ? String.valueOf(node.get("pulses").asInt()) : "N/A");
-					table.addCell(node.hasNonNull("intensity") ? String.valueOf(node.get("intensity").asInt()) : "N/A");
-					table.addCell(node.hasNonNull("duration") ? String.valueOf(node.get("duration").asInt()) : "N/A");
-					table.addCell(node.hasNonNull("interval") ? String.valueOf(node.get("interval").asInt()) : "N/A");
+					table.addCell(node.path("pulses").asText("N/A"));
+					table.addCell(node.path("intensity").asText("N/A"));
+					table.addCell(node.path("duration").asText("N/A"));
+					table.addCell(node.path("interval").asText("N/A"));
 				}
 			}
 
